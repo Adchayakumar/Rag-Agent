@@ -1,4 +1,4 @@
-# evaluation/evaluate_summary.py
+
 
 import os
 from typing import List, Dict
@@ -86,3 +86,12 @@ if __name__ == "__main__":
         print("\nGenerated summary:")
         print(r["generated"])
         print("-" * 80)
+    with open("logs/summary_eval.txt", "w", encoding="utf-8") as f:
+        for r in results:
+            f.write(f"File: {r['filename']}\n")
+            f.write(f"ROUGE-1 F: {r['rouge1_f']:.3f}, ROUGE-L F: {r['rougeL_f']:.3f}\n")
+            f.write("Reference summary:\n")
+            f.write(r["reference"] + "\n\n")
+            f.write("Generated summary:\n")
+            f.write(r["generated"] + "\n")
+            f.write("-" * 80 + "\n\n")
