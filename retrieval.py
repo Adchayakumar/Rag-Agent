@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-ffrom langchain_core.documents import Document
+from langchain_core.documents import Document
 
 from preprocess import preprocess_documents  
 
