@@ -1,5 +1,5 @@
 
-import os
+import os, pickle
 from typing import List
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -65,3 +65,9 @@ if __name__ == "__main__":
         print(f"\n--- Chunk {i} ---")
         print(c.page_content[:300], "...")
         print("Metadata:", c.metadata)
+   
+
+    os.makedirs("data", exist_ok=True)
+    
+    with open("data/chunks.pkl", "wb") as f:
+        pickle.dump(chunks, f)
