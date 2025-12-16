@@ -1,4 +1,4 @@
-# retrieval.py
+
 
 from typing import List, Tuple
 import numpy as np
@@ -8,10 +8,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain.schema import Document
+ffrom langchain_core.documents import Document
 
-from preprocess import preprocess_documents  # from your previous file
-
+from preprocess import preprocess_documents  
 
 class HybridRetriever:
     """
