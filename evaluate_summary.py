@@ -5,7 +5,7 @@ from typing import List, Dict
 
 from rouge_score import rouge_scorer
 
-from preprocess import preprocess_documents
+from utils import load_cached_chunks
 from retrieval import HybridRetriever
 from summarize import summarize_docs
 
@@ -71,8 +71,8 @@ def evaluate_summaries(chunks) -> List[Dict]:
 
 
 if __name__ == "__main__":
-    print("Preprocessing documents...")
-    chunks = preprocess_documents()
+    print("loading cached chunks...")
+    chunks = load_cached_chunks()
     print(f"Total chunks: {len(chunks)}")
 
     print("\nEvaluating summaries...")
