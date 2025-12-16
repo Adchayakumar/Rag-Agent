@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     retriever = HybridRetriever(chunks)
 
-    query = "What is the main idea of the first document?"
+    query = "What is Parameter efficient fine-tuning"
     print(f"\nQuery: {query}")
 
     print("\nTop 3 TF-IDF results:")
