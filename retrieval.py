@@ -1,5 +1,3 @@
-
-
 from typing import List, Tuple
 import numpy as np
 
@@ -8,9 +6,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_core.documents import Document
-
+from langchain_core.documents import Document 
 from preprocess import preprocess_documents  
+
 
 class HybridRetriever:
     """
@@ -45,7 +43,7 @@ class HybridRetriever:
     def search_tfidf(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
         """Return top-k chunks by TF-IDF cosine similarity."""
         q_vec = self.tfidf_vectorizer.transform([query])
-        sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]  # shape (n_chunks,)
+        sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]  # shape (n_chunks,) [web:279][web:282]
         top_idx = np.argsort(sims)[::-1][:k]
         results = [(self.chunks[i], float(sims[i])) for i in top_idx]
         return results
@@ -55,48 +53,57 @@ class HybridRetriever:
     def search_embeddings(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
         """Return top-k chunks by embedding similarity via Chroma."""
         docs_with_scores = self.vectorstore.similarity_search_with_score(query, k=k)
-        # docs_with_scores: List[(Document, score)]
-        # Chroma scores are distance-like; convert to similarity (optional)
+        # docs_with_scores: List[(Document, distance)]
         results = []
         for doc, score in docs_with_scores:
-            sim = 1.0 / (1.0 + score)  # simple transform: smaller distance -> higher sim
+            sim = 1.0 / (1.0 + score)  # distance -> similarity
             results.append((doc, float(sim)))
         return results
 
-    # ---------- Hybrid search ----------
+    # ---------- Hybrid search (fixed: no .index(doc)) ----------
 
     def search_hybrid(self, query: str, k: int = 5, alpha: float = 0.5) -> List[Tuple[Document, float]]:
         """
         Combine TF-IDF and embedding scores.
         alpha controls weight: 0.5 means equal weight.
         Returns top-k chunks with highest combined score.
+
+        Fix: instead of self.chunks.index(doc), we key by document identity (id(doc)).
         """
         tfidf_results = self.search_tfidf(query, k=max(k, 10))
         embed_results = self.search_embeddings(query, k=max(k, 10))
 
-        # Collect scores per document id (we'll use index in self.chunks as ID)
+        # Maps from a Python object id (doc identity) to scores
         tfidf_scores = {}
-        for doc, score in tfidf_results:
-            idx = self.chunks.index(doc)
-            tfidf_scores[idx] = max(tfidf_scores.get(idx, 0.0), score)
-
         embed_scores = {}
+        doc_by_id = {}
+
+        # Collect TF-IDF scores
+        for doc, score in tfidf_results:
+            key = id(doc)
+            doc_by_id[key] = doc
+            # keep max score for that doc
+            tfidf_scores[key] = max(tfidf_scores.get(key, 0.0), score)
+
+        # Collect embedding scores
         for doc, score in embed_results:
-            idx = self.chunks.index(doc)
-            embed_scores[idx] = max(embed_scores.get(idx, 0.0), score)
+            key = id(doc)
+            doc_by_id[key] = doc
+            embed_scores[key] = max(embed_scores.get(key, 0.0), score)
 
         # Combine scores (0 if missing)
         combined = []
-        for idx in range(len(self.chunks)):
-            s_tfidf = tfidf_scores.get(idx, 0.0)
-            s_emb = embed_scores.get(idx, 0.0)
-            combined_score = alpha * s_tfidf + (1 - alpha) * s_emb
-            if combined_score > 0:
-                combined.append((idx, combined_score))
+        for key, doc in doc_by_id.items():
+            s_tfidf = tfidf_scores.get(key, 0.0)
+            s_emb = embed_scores.get(key, 0.0)
+            combined_score = alpha * s_tfidf + (1.0 - alpha) * s_emb
+            if combined_score > 0.0:
+                combined.append((doc, combined_score))
 
         # Sort and take top-k
         combined_sorted = sorted(combined, key=lambda x: x[1], reverse=True)[:k]
-        results = [(self.chunks[idx], float(score)) for idx, score in combined_sorted]
+        # combined_sorted: List[(Document, score)]
+        results = [(doc, float(score)) for doc, score in combined_sorted]
         return results
 
 

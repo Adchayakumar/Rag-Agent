@@ -4,7 +4,7 @@ import os
 from typing import List
 
 import google.generativeai as genai
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 from retrieval import HybridRetriever
 from preprocess import preprocess_documents
