@@ -3,7 +3,7 @@
 import os
 from typing import List, Dict, Any
 
-from preprocess import preprocess_documents
+from utils import load_cached_chunks
 from retrieval import HybridRetriever
 
 # Small test set: query + which PDF it should hit
@@ -64,8 +64,8 @@ def evaluate_search(retriever: HybridRetriever, k: int = 5) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    print("Preprocessing documents...")
-    chunks = preprocess_documents()
+    print("loading cached chunks...")
+    chunks = load_cached_chunks()
     print(f"Total chunks: {len(chunks)}")
 
     retriever = HybridRetriever(chunks)
