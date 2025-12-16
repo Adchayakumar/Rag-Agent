@@ -10,21 +10,22 @@ from retrieval import HybridRetriever
 TEST_QUERIES = [
     {
         "query": "What is machine learning and what are its main types?",
-        "expected_source_keyword": "What-is-machine-learning.pdf",
+        "expected_source_keyword": "What is machine learning.pdf",
     },
     {
         "query": "How does deep learning work and what are CNNs, RNNs, and transformers?",
-        "expected_source_keyword": "What-is-deep-learning.pdf",
+        "expected_source_keyword": "What is deep learning.pdf",
     },
     {
         "query": "What is LLM fine-tuning and why is it important?",
-        "expected_source_keyword": "What-is-LLM-fine-tuning.pdf",
+        "expected_source_keyword": "What is LLM fine-tuning.pdf",
     },
     {
         "query": "What are the main risks and dangers of AI?",
-        "expected_source_keyword": "15-Risks-and-Dangers-of-Ai.pdf",
+        "expected_source_keyword": "15 Risks and Dangers of Ai.pdf",
     },
 ]
+
 
 
 def source_matches(doc, keyword: str) -> bool:
