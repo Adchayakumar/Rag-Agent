@@ -3,10 +3,13 @@ import pickle
 from langchain_core.documents import Document
 
 def load_cached_chunks(path: str = "data/chunks.pkl"):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"No cached chunks at {path}. Run preprocess.py once.")
-    with open(path, "rb") as f:
+    # Resolve relative to this file's directory
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    full_path = os.path.join(base_dir, path)
+
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f"No cached chunks at {full_path}. Run preprocess.py once.")
+
+    with open(full_path, "rb") as f:
         chunks = pickle.load(f)
-    # If you saved list[Document] directly, this is already fine.
-    # If you saved dicts, convert to Document here.
     return chunks
