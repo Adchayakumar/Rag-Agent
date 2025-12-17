@@ -2,7 +2,7 @@
 
 # Document Search and Summarization with RAG
 
-[▶ Live Demo on Streamlit](https://rag-agent-for.streamlit.app/)
+[▶ You can see a deployed version of this app here](https://rag-agent-for.streamlit.app/)
 
 This project implements a Retrieval‑Augmented Generation (RAG) system that can search and summarize a small corpus of PDF documents using a traditional IR method (TF‑IDF), dense embeddings (Chroma + sentence transformers), and a Gemini LLM for summarization. It includes automated evaluation for both retrieval and summarization, plus a Streamlit UI.
 
