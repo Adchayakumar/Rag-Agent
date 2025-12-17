@@ -1,12 +1,10 @@
-
-
 import os
 from typing import List, Dict, Any
 
 from utils import load_cached_chunks
 from retrieval import HybridRetriever
 
-# Small test set: query + which PDF it should hit
+# Small test set: query + which PDF it should hit [file:155]
 TEST_QUERIES = [
     {
         "query": "What is machine learning and what are its main types?",
@@ -27,13 +25,21 @@ TEST_QUERIES = [
 ]
 
 
+def normalize_name(s: str) -> str:
+    """Normalize filenames for more robust matching."""
+    return (
+        s.lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .strip()
+    )
+
 
 def source_matches(doc, keyword: str) -> bool:
     """Check if the document's source metadata or path contains the keyword."""
     src = doc.metadata.get("source", "") or ""
-    # Only basename is often enough
     base = os.path.basename(src)
-    return keyword.lower() in base.lower()
+    return normalize_name(keyword) in normalize_name(base)
 
 
 def evaluate_search(retriever: HybridRetriever, k: int = 5) -> Dict[str, Any]:
@@ -83,9 +89,17 @@ if __name__ == "__main__":
         print("Hit:", r["hit"])
         print("-" * 60)
 
+    # ---- Save to logs/search_eval.txt ----
+    os.makedirs("logs", exist_ok=True)
 
-
-
-
-
+    log_path = "logs/search_eval.txt"
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(f"Search evaluation (k={eval_result['k']}):\n")
+        f.write(f"Accuracy: {eval_result['accuracy']:.2f}\n\n")
+        for r in eval_result["results"]:
+            f.write(f"Query: {r['query']}\n")
+            f.write(f"Expected source contains: {r['expected_source_keyword']}\n")
+            f.write(f"Top sources: {', '.join(r['top_sources'])}\n")
+            f.write(f"Hit: {r['hit']}\n")
+            f.write("-" * 60 + "\n")
 
