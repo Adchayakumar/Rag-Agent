@@ -1,0 +1,23 @@
+Search evaluation (k=5):
+Accuracy: 1.00
+
+Query: What is machine learning and what are its main types?
+Expected source contains: What is machine learning.pdf
+Top sources: What is machine learning.pdf, What is machine learning.pdf, What is machine learning.pdf, What is machine learning.pdf, What is machine learning.pdf
+Hit: True
+------------------------------------------------------------
+Query: How does deep learning work and what are CNNs, RNNs, and transformers?
+Expected source contains: What is deep learning.pdf
+Top sources: What is deep learning.pdf, What is deep learning.pdf, What is deep learning.pdf, What is deep learning.pdf, What is deep learning.pdf
+Hit: True
+------------------------------------------------------------
+Query: What is LLM fine-tuning and why is it important?
+Expected source contains: What is LLM fine-tuning.pdf
+Top sources: What is LLM fine-tuning.pdf, What is LLM fine-tuning.pdf, What is LLM fine-tuning.pdf, What is LLM fine-tuning.pdf, What is LLM fine-tuning.pdf
+Hit: True
+------------------------------------------------------------
+Query: What are the main risks and dangers of AI?
+Expected source contains: 15 Risks and Dangers of Ai.pdf
+Top sources: 15 Risks and Dangers of Ai.pdf, 15 Risks and Dangers of Ai.pdf, 15 Risks and Dangers of Ai.pdf, 15 Risks and Dangers of Ai.pdf, 15 Risks and Dangers of Ai.pdf
+Hit: True
+------------------------------------------------------------

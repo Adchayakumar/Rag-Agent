@@ -1,0 +1,36 @@
+File: What is machine learning.pdf
+ROUGE-1 F: 0.425, ROUGE-L F: 0.319
+Reference summary:
+Defines machine learning as a field where algorithms learn from data without explicit programming, explains types like supervised, unsupervised, semi-supervised, and reinforcement learning, and shows applications such as recommendation systems, fraud detection, and image recognition.
+
+Generated summary:
+Machine learning, a subset of AI, involves algorithms that allow computers to learn from data and past experiences to make predictions or decisions without explicit programming. Machine learning algorithms analyze data, identify patterns, and improve performance through training, finding applications in self-driving cars, fraud detection, and personalized recommendations, and can be classified into supervised, unsupervised, and semi-supervised learning. Different machine learning techniques are designed for different tasks such as classification, regression, clustering, and anomaly detection.
+--------------------------------------------------------------------------------
+
+File: What is deep learning.pdf
+ROUGE-1 F: 0.370, ROUGE-L F: 0.241
+Reference summary:
+Explains deep learning as neural network based learning with many hidden layers, describes CNNs, RNNs, and transformers, and compares deep learning with traditional machine learning in terms of accuracy, data needs, and feature engineering.
+
+Generated summary:
+Deep learning models, based on neural networks with numerous hidden layers, learn directly from large labeled datasets, using high-performance GPUs and parallel architecture to reduce training time. Common types of deep learning models include convolutional neural networks (CNNs) for image processing, recurrent neural networks (RNNs) for time-series data, and transformers for natural language processing. Models can be trained from scratch with large datasets or adapted via transfer learning using pre-trained models.
+--------------------------------------------------------------------------------
+
+File: What is LLM fine-tuning.pdf
+ROUGE-1 F: 0.443, ROUGE-L F: 0.393
+Reference summary:
+Describes LLM fine-tuning as adapting a pre-trained model to a specific domain or task, covers motivations like customization, data compliance, and limited labeled data, and outlines approaches such as feature extraction, full fine-tuning, supervised fine-tuning, and RLHF.
+
+Generated summary:
+LLM fine-tuning adjusts the parameters of pre-trained language models for specific tasks, allowing customization to understand unique language patterns, ensure data compliance, and maximize the utility of limited labeled data. There are two primary approaches to fine-tuning: feature extraction, which is cost-effective, and full fine-tuning, which is more computationally intensive but can lead to superior performance. Fine-tuning methods include supervised fine-tuning, where the model is trained on a labeled dataset, often involving hyperparameter tuning.
+--------------------------------------------------------------------------------
+
+File: 15 Risks and Dangers of Ai.pdf
+ROUGE-1 F: 0.396, ROUGE-L F: 0.271
+Reference summary:
+Lists major risks of AI such as lack of transparency, job losses from automation, deepfakes and social manipulation, privacy violations, algorithmic bias, and military use, arguing for responsible development and regulation.
+
+Generated summary:
+Experts are increasingly warning about the potential dangers of AI, such as job losses due to automation, social manipulation through biased algorithms and deepfakes, and a lack of transparency, with some AI companies accused of concealing the risks. The automation of tasks in various industries may lead to significant job displacement, while AI-generated content can be used to spread misinformation and manipulate public opinion.
+--------------------------------------------------------------------------------
+
