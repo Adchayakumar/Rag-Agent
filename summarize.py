@@ -11,12 +11,21 @@ from preprocess import preprocess_documents
 
 # ---------- LLM CONFIG (Gemini) ----------
 
-GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+try:
+    import streamlit as st
+    _secret_key = st.secrets.get("GEMINI_API_KEY", None)
+except Exception:
+    _secret_key = None
+
+GENAI_API_KEY = _secret_key or os.environ.get("GEMINI_API_KEY")
+
 if not GENAI_API_KEY:
-    raise ValueError("Please set GEMINI_API_KEY environment variable.")
+    raise ValueError("Please set GEMINI_API_KEY environment variable or Streamlit secret.")
 
 genai.configure(api_key=GENAI_API_KEY)
-MODEL_NAME = "gemini-2.0-flash"  # or your preferred model
+MODEL_NAME = "gemini-2.0-flash"
+
 
 
 def llm_summarize(prompt: str) -> str:
