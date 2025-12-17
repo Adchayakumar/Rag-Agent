@@ -1,350 +1,298 @@
 
 
-# Document Search and Summarization Using LLMs
+# Document Search and Summarization with RAG
 
-A small, end‑to‑end system for document search and summarization over a PDF corpus using:
+[▶ Live Demo on Streamlit](https://rag-agent-for.streamlit.app/)
 
-- Traditional information retrieval (TF‑IDF)  
-- Dense LLM embeddings (HuggingFace + Chroma)  
-- LLM‑based summarization (Gemini) with controllable summary length  
-- Offline search evaluation via `evaluate_search.py`  
-- A simple Streamlit UI for interactive use  
+This project implements a Retrieval‑Augmented Generation (RAG) system that can search and summarize a small corpus of PDF documents using a traditional IR method (TF‑IDF), dense embeddings (Chroma + sentence transformers), and a Gemini LLM for summarization. It includes automated evaluation for both retrieval and summarization, plus a Streamlit UI.
 
 ***
 
-## 1. Goals and High‑Level Design
+## 1. Project Overview
 
-### Objective
+The goal is to design a system that can:
 
-The system is designed to:
+- Search a fixed corpus of PDFs and return the most relevant chunks for a user query.  
+- Summarize those chunks using a Large Language Model (Gemini).  
+- Evaluate:
+  - Retrieval quality (does the correct document appear in top‑k?).  
+  - Summary quality using ROUGE metrics against short human‑written reference summaries.  
+- Provide a user‑friendly interface with:
+  - Query input (with example suggestions).  
+  - Adjustable summary length (short / medium / long).  
+  - Pagination over retrieved chunks.
 
-1. Ingest and preprocess a small corpus of PDFs.  
-2. Search the corpus using both traditional IR (TF‑IDF) and embeddings.  
-3. Summarize the most relevant chunks using an LLM.  
-4. Evaluate search accuracy on a small, labeled test set.  
-5. Optionally provide a Streamlit UI for querying and summarizing.
-
-### Main Components
-
-- Data preparation: `preprocess.py`  
-- Retrieval (TF‑IDF + embeddings): `retrieval.py`  
-- Summarization (Gemini): `summarize.py`  
-- Search evaluation: `evaluate_search.py`  
-- User interface (Streamlit): `app.py`  
+The system is designed for a fixed, small corpus (4 PDFs), as required in the assignment, but the architecture can scale to larger corpora.
 
 ***
 
-## 2. Corpus and Data Preparation (`preprocess.py`)
+## 2. Data and Pre‑processing
 
-### 2.1 Corpus
+### Corpus
 
-Place your four PDFs under the `corpus/` directory:
+The corpus consists of 4 PDF documents:
 
-- `What-is-machine-learning.pdf`  
-- `What-is-deep-learning.pdf`  
-- `What-is-LLM-fine-tuning.pdf`  
-- `15-Risks-and-Dangers-of-Ai.pdf`  
+- What is machine learning  
+- What is deep learning  
+- What is LLM fine‑tuning  
+- 15 Risks and Dangers of AI  
 
-These documents cover different AI/ML topics and serve as the corpus for search and summarization.
+These are placed in the `corpus/` directory and loaded using LangChain’s `PyPDFLoader`.
 
-### 2.2 Preprocessing
+### Pre‑processing steps
 
-Module: `preprocess.py`
+Implemented in `preprocess.py`:
 
-Responsibilities:
+1. **PDF loading**  
+   - Uses `PyPDFLoader` to read each PDF into a list of `Document` objects (one per page).  
+   - The `source` metadata is set to the PDF path so later evaluation can map chunks back to files.
 
-- **Loading**  
-  - Iterate over all `.pdf` files in `corpus/`.  
-  - Use `PyPDFLoader` to load each PDF page as a LangChain `Document`.  
-  - Attach metadata:
-    - `source`: full path to the PDF  
-    - `page`: page number  
+2. **Text cleaning**  
+   - Strips leading/trailing whitespace.  
+   - Removes empty lines and normalizes multiple spaces/newlines into a single space.  
+   - Justification: this reduces noise (line breaks, spacing) without changing semantic content, helping both TF‑IDF and embeddings.
 
-- **Cleaning**  
-  - Strip leading/trailing whitespace.  
-  - Collapse multiple newlines/spaces into a single space.  
-  - Drop empty documents after cleaning.  
+3. **Chunking**  
+   - Uses `RecursiveCharacterTextSplitter` with:
+     - `chunk_size=1000`  
+     - `chunk_overlap=150`  
+   - Justification:
+     - 1000 characters is enough to capture a complete paragraph or section.  
+     - 150 overlap preserves context across chunk boundaries while limiting duplication.
 
-- **Chunking**  
-  - Use `RecursiveCharacterTextSplitter` with:  
-    - `chunk_size = 1000`  
-    - `chunk_overlap = 150`  
-  - Produce overlapping text chunks suitable for search and summarization.
-
-**API**
-
-```python
-preprocess_documents(corpus_dir: str = "corpus") -> List[Document]
-```
-
-Returns a list of cleaned, chunked `Document` objects for all PDFs.
+4. **Caching**  
+   - All chunks are cached to `data/chunks.pkl` after preprocessing.  
+   - Evaluation scripts and the UI reuse this cache instead of re‑parsing PDFs, improving efficiency and reproducibility.
 
 ***
 
-## 3. Retrieval: TF‑IDF + Embeddings (`retrieval.py`)
+## 3. Retrieval Methodology
 
-### 3.1 `HybridRetriever`
+### HybridRetriever
 
-Class: `HybridRetriever`
+Implemented in `retrieval.py` as a `HybridRetriever` class.
 
-**Input:**
+#### TF‑IDF (traditional IR)
 
-- `chunks`: list of `Document` objects from `preprocess_documents()`.
+- Uses `TfidfVectorizer` with:
+  - `max_features=5000`  
+  - `ngram_range=(1, 2)`  
+- Builds a TF‑IDF matrix over all chunks.  
+- For a query, computes cosine similarity between query TF‑IDF vector and all chunk vectors, returning top‑k chunks.
 
-**Internal indexes:**
+#### Embedding search (Chroma)
 
-- **TF‑IDF index (traditional IR)**  
-  - Uses `TfidfVectorizer` (unigrams + bigrams, limited max features).  
-  - Builds a sparse TF‑IDF matrix over all chunk texts.  
-  - Captures exact/keyword‑based relevance.
+- Uses `HuggingFaceEmbeddings` with `sentence-transformers/all-mpnet-base-v2`.  
+- Indexes chunks in a Chroma vector store.  
+- For a query, retrieves top‑k chunks by embedding similarity via `similarity_search_with_score`, converting distances to a simple similarity score.
 
-- **Embedding index (semantic search)**  
-  - Uses `HuggingFaceEmbeddings` (e.g., `sentence-transformers/all-mpnet-base-v2`).  
-  - Stores embeddings in a `Chroma` vector store.  
-  - Captures semantic similarity even when wording is different.
+#### Hybrid search
 
-### 3.2 Retrieval Methods
+- For each query, retrieves top‑k candidates from both TF‑IDF and embedding search.  
+- Uses Python object identity (`id(doc)`) to combine scores per chunk, avoiding `self.chunks.index(doc)` issues.  
+- Combined score:
 
-```python
-search_tfidf(query: str, k: int = 5) -> List[Tuple[Document, float]]
-```
+  \[
+  \text{combined} = \alpha \cdot \text{tfidf\_score} + (1 - \alpha) \cdot \text{embedding\_score}
+  \]
 
-- Converts query to a TF‑IDF vector.  
-- Computes cosine similarity with all chunk vectors.  
-- Returns top‑k chunks ranked by TF‑IDF similarity.
+  with default \(\alpha = 0.5\).  
+- Returns top‑k chunks with highest combined scores.
 
-```python
-search_embeddings(query: str, k: int = 5) -> List[Tuple[Document, float]]
-```
+#### Why hybrid?
 
-- Uses `Chroma.similarity_search_with_score`.  
-- Converts distances to similarity scores (e.g., `1 / (1 + distance)`).  
-- Returns top‑k chunks ranked by embedding similarity.
-
-```python
-search_hybrid(query: str, k: int = 5, alpha: float = 0.5) -> List[Tuple[Document, float]]
-```
-
-- Runs both TF‑IDF and embedding search.  
-- Combines scores:
-
-  ```python
-  combined_score = alpha * tfidf_score + (1 - alpha) * embedding_score
-  ```
-
-- Returns top‑k chunks sorted by combined score.
-
-This implements a hybrid retrieval approach as required (traditional IR + embeddings).
+- TF‑IDF is strong on exact keyword overlap.  
+- Embeddings capture semantic similarity and paraphrases.  
+- Combining them provides more robust retrieval, especially in small corpora where both lexical and semantic signals matter.
 
 ***
 
-## 4. Summarization (`summarize.py`)
+## 4. Summarization Methodology
 
-### 4.1 LLM Configuration
+Implemented in `summarize.py`.
 
-- Provider: Gemini via `google-generativeai`  
-- Environment variable: `GEMINI_API_KEY`  
-- Default model: `gemini-2.0-flash` (configurable)
+### Model configuration
 
-Helper function:
+- Uses `google.generativeai` with Gemini (`gemini-2.0-flash`).  
+- API key is read from:
+  - `st.secrets["GEMINI_API_KEY"]` (for Streamlit Cloud), if available, or  
+  - `GEMINI_API_KEY` / `GOOGLE_API_KEY` environment variables for local/Colab runs.
 
-```python
-llm_summarize(prompt: str) -> str
-```
+### Document selection
 
-Sends a prompt to Gemini and returns the response text.
+- For a given user query, `HybridRetriever.search_hybrid(query, k)` returns top‑k chunks.  
+- These chunks are concatenated into a single context string passed to the LLM.
 
-### 4.2 Summarization Logic
+### Summary length control
 
-Goal:  
-Given retrieved chunks, generate a coherent summary with configurable length.
-
-Functions:
-
-```python
-build_summary_prompt(docs: List[Document], length: str = "short") -> str
-```
-
-- Concatenates chunk texts with markers like `[DOC 1]`, `[DOC 2]`, …  
-- Adds instructions:
-  - Use only the provided text as evidence.  
-  - Do not introduce external information.  
-  - Respect `length`:
-    - `"short"` → 2–3 sentences  
-    - `"medium"` → one concise paragraph  
-    - `"long"` → 2–3 short paragraphs  
-
-```python
-summarize_docs(docs: List[Document], length: str = "short") -> str
-```
-
-- Builds the prompt and calls `llm_summarize`.  
-- Returns the cleaned summary string.
-
-**Usage pattern:**
-
-```python
-results = retriever.search_hybrid(query, k)
-docs = [doc for doc, _ in results]
-summary = summarize_docs(docs, length="short")
-```
+- A `summarize_docs(docs, length)` function creates a prompt that asks the model for:
+  - `"short"` summary: 2–3 concise sentences.  
+  - `"medium"` summary: a paragraph capturing key points.  
+  - `"long"` summary: more detailed multi‑paragraph explanation.  
+- The Streamlit UI lets the user choose the desired length; the system generates only one summary per request.
 
 ***
 
-## 5. Search Evaluation (`evaluate_search.py`)
+## 5. Evaluation Procedure and Results
 
-File: `evaluate_search.py`
+### 5.1 Retrieval evaluation (search)
 
-### Purpose
+Implemented in `evaluate_search.py`.
 
-Evaluate how well the hybrid retriever returns the correct PDF for a set of known queries.
+#### Test set
 
-### Test setup
+- 4 queries, each targeted at one specific PDF:
+  - Machine learning  
+  - Deep learning  
+  - LLM fine‑tuning  
+  - AI risks  
+- For each, an `expected_source_keyword` is defined (the real PDF filename).
 
-Define a small list of queries mapped to expected PDFs, for example:
-
-- “What is machine learning?” → `What-is-machine-learning.pdf`  
-- “Explain deep learning and CNNs/RNNs/transformers.” → `What-is-deep-learning.pdf`  
-- “What is LLM fine‑tuning?” → `What-is-LLM-fine-tuning.pdf`  
-- “What are the main risks of AI?” → `15-Risks-and-Dangers-of-Ai.pdf`  
-
-### Procedure
+#### Evaluation method
 
 For each query:
 
-- Call `HybridRetriever.search_hybrid(query, k)`.  
-- Inspect `doc.metadata["source"]` for top‑k results.  
-- Mark `hit = True` if any source filename contains the expected PDF name (or keyword).
+1. Run `search_hybrid(query, k=5)`.  
+2. Extract `source` filenames of the top‑k chunks.  
+3. Check if any of these filenames match the expected PDF (using normalized filename comparison for robustness).  
+4. Compute accuracy:
 
-### Logging
+\[
+\text{accuracy} = \frac{\text{\#queries where expected PDF appears in top‑k}}{\text{total queries}}
+\]
 
-For each query, print:
+#### Results
 
-- Query  
-- Expected source keyword  
-- Top‑k source filenames  
-- `Hit: True/False`  
+- For k=5, accuracy = **1.00** (4/4 queries hit the correct document).  
+- Detailed results are saved in `logs/search_eval.txt` and show that all top‑k results for each query come from the correct PDF.  
+- This satisfies the requirement to “measure the accuracy of the search mechanism based on the relevance of returned documents.”
 
-### Metric
+### 5.2 Summarization evaluation
 
-```text
-accuracy@k = hits / total_queries
-```
+Implemented in `evaluate_summary.py`.
 
-**Run:**
+#### Reference summaries
 
-```bash
-python evaluate_search.py
-```
+- A short human‑written reference summary is created for each PDF and stored in `REFERENCE_SUMMARIES`.
 
-This gives a simple, interpretable measure of search relevance.
+#### Evaluation method
+
+For each PDF:
+
+1. Select a subset of chunks belonging to that PDF (by filename in `metadata["source"]`).  
+2. Run `summarize_docs(docs, length="short")` to generate a short system summary.  
+3. Compute ROUGE‑1 F and ROUGE‑L F between reference and generated summaries using the `rouge_score` package.
+
+Results are saved in `logs/summary_eval.txt`.
+
+#### Results (example)
+
+- Machine learning PDF:
+  - ROUGE‑1 F ≈ 0.425  
+  - ROUGE‑L F ≈ 0.319  
+- Deep learning PDF:
+  - ROUGE‑1 F ≈ 0.370  
+  - ROUGE‑L F ≈ 0.241  
+
+#### Interpretation
+
+- ROUGE scores range from 0 to 1; higher means more overlap with the reference.  
+- Values around 0.3–0.4 for ROUGE‑1 with short abstractive summaries indicate that the model covers most key points but with different wording and structure.  
+- Together with manual inspection, this shows that summaries are reasonably faithful to the source documents.
 
 ***
 
-## 6. Streamlit User Interface (`app.py`)
+## 6. Challenges and Solutions
 
-File: `app.py` (optional but recommended for demo)
+1. **Environment and dependency issues (Colab)**  
+   - Problems with protobuf versions and GPU warnings (cuFFT/cuDNN registration).  
+   - Solution: pin compatible versions where needed and treat GPU logs as warnings when they do not affect RAG logic.
 
-### Responsibilities
+2. **Hybrid retriever bug**  
+   - Initial implementation used `self.chunks.index(doc)` to map documents back to indices, causing `ValueError` when Python objects differed.  
+   - Solution: switch to identity‑based aggregation (`id(doc)`) and score dictionaries, avoiding list lookups by object equality.
 
-- Initialize and cache the retriever:
+3. **Filename mismatches in evaluation**  
+   - Evaluation initially used dashed filenames (e.g., `What-is-machine-learning.pdf`), while metadata had filenames with spaces.  
+   - Solution: normalize filenames (replace `-` / `_` with spaces, lowercase) for robust matching, and update test keys to real filenames.
 
-```python
-@st.cache_resource
-def get_retriever():
-    chunks = preprocess_documents()
-    return HybridRetriever(chunks)
+4. **Performance concerns**  
+   - Building embeddings and vector store is slow on first run.  
+   - Solution: cache chunks (`data/chunks.pkl`) and use `@st.cache_resource` in Streamlit so retriever is built only once per process; document this explicitly as an efficiency measure.
+
+5. **API key handling**  
+   - Gemini key should not be hardcoded or committed.  
+   - Solution: read from environment variables for local/Colab and from Streamlit secrets (`st.secrets["GEMINI_API_KEY"]`) on Streamlit Cloud, following best practices.
+
+***
+
+## 7. Setup and Running the Solution
+
+### 7.1 Local / Colab (CLI scripts)
+
+**Clone the repo**
+
+```bash
+git clone https://github.com/Adchayakumar/Rag-Agent.git
+cd Rag-Agent
 ```
 
-- Inputs:
-  - Query text (`st.text_input`)  
-  - Summary length (`st.selectbox`: short / medium / long)  
-  - Top‑k documents (`st.slider`)
+**Install dependencies**
 
-- Search & summarize:
-  - On button click:
-    - Run `search_hybrid(query, k)` to get top‑k chunks.  
-    - Call `summarize_docs(docs, length)` to generate a summary.
+```bash
+pip install -r requirements.txt
+```
 
-- Display:
-  - The generated summary.  
-  - For each result:
-    - Source filename and page.  
-    - Short snippet of the chunk text.
+**Set Gemini API key**
 
-**Run:**
+On your machine / Colab:
+
+```bash
+export GEMINI_API_KEY="YOUR_REAL_KEY"
+# or in Python:
+# import os; os.environ["GEMINI_API_KEY"] = "YOUR_REAL_KEY"
+```
+
+**Preprocess and cache chunks**
+
+```bash
+python preprocess.py
+# creates data/chunks.pkl
+```
+
+**Test retrieval and summarization**
+
+```bash
+python retrieval.py
+python summarize.py
+```
+
+**Run evaluations**
+
+```bash
+python evaluate_search.py     # logs/search_eval.txt
+python evaluate_summary.py    # logs/summary_eval.txt
+```
+
+### 7.2 Streamlit UI (local)
 
 ```bash
 streamlit run app.py
 ```
 
-This provides a simple UI that lets reviewers interact with your RAG system.
 
-***
+## 8. Repository Structure
 
-## 7. How to Run the System
+- `corpus/` – Input PDFs (fixed corpus).  
+- `data/` – Cached chunks (`chunks.pkl`).  
+- `logs/` – Evaluation logs (`search_eval.txt`, `summary_eval.txt`).  
+- `preprocess.py` – PDF loading, cleaning, chunking, and caching.  
+- `retrieval.py` – `HybridRetriever` (TF‑IDF + embeddings + hybrid).  
+- `summarize.py` – Gemini configuration and summarization logic.  
+- `evaluate_search.py` – Retrieval evaluation (top‑k accuracy).  
+- `evaluate_summary.py` – Summary evaluation (ROUGE).  
+- `utils.py` – Helper functions (e.g., `load_cached_chunks`).  
+- `app.py` – Streamlit web interface.  
+- `requirements.txt` – Dependencies.  
 
-### 7.1 Install Dependencies
 
-Example:
-
-```bash
-pip install langchain-community langchain-text-splitters langchain-huggingface langchain-chroma
-pip install scikit-learn
-pip install google-generativeai
-pip install rouge-score
-pip install streamlit
-```
-
-### 7.2 Prepare the Corpus
-
-Place PDFs in:
-
-```text
-corpus/
-  ├── What-is-machine-learning.pdf
-  ├── What-is-deep-learning.pdf
-  ├── What-is-LLM-fine-tuning.pdf
-  └── 15-Risks-and-Dangers-of-Ai.pdf
-```
-
-### 7.3 Configure Gemini
-
-Set API key:
-
-```bash
-export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-```
-
-### 7.4 Quick CLI Demo
-
-```bash
-python retrieval.py      # optional retrieval demo
-python summarize.py      # demo: search + summarize pipeline
-```
-
-### 7.5 Evaluate Search
-
-```bash
-python evaluate_search.py
-```
-
-Check console output for per‑query hits and overall accuracy@k.
-
-### 7.6 Streamlit UI
-
-```bash
-streamlit run app.py
-```
-
-Open the URL shown in the terminal to access the web interface.
-
-***
-
-## 8. Limitations and Future Work
-
-- Small corpus (4 PDFs) → metrics are illustrative, not statistically strong.  
-- Simple hybrid retrieval (linear fusion of TF‑IDF and embeddings) → could be extended with BM25, rerankers, or learned ranking models.  
-- Single‑shot summarization → for longer documents, a hierarchical summarization pipeline (chunk → section → full doc) would be more robust.  
-- Evaluation coverage → based on a small manually defined test set; future work could add more queries and more advanced metrics (BERTScore, human ratings).  
-- Model provider → currently uses Gemini; the LLM wrapper can be generalized to support other providers (OpenAI, Groq, etc.).
