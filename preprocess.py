@@ -25,7 +25,7 @@ def load_pdfs(corpus_dir: str = CORPUS_DIR):
 
 
 def clean_text(text: str) -> str:
-    """Basic text cleaning: strip whitespace and normalize spaces."""
+    """Basic text cleaning: strip whitespace & normalize spaces."""
     # strip leading/trailing whitespace
     text = text.strip()
     # collapse multiple newlines/spaces
