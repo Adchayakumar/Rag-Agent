@@ -13,7 +13,7 @@
 
 Design and implement a system that can:
 
-- **Search** a fixed corpus of PDFs and return the most relevant chunks for a user query  
+- **Search** a  fixed corpus of PDFs and return the most relevant chunks for a user query  
 - **Summarize** retrieved chunks using a Large Language Model (Gemini)  
 - **Evaluate**  
   - Retrieval quality (does the correct document appear in top-k?)  
